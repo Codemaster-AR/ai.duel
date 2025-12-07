@@ -268,7 +268,7 @@
                 KILLS now grant **POINTS**, which are used to buy Upgrades and Healing.
             </p>
             <p class="text-sm mb-6 font-bold text-yellow-400">
-                NEW: BUMPING with enemies causes **MUTUAL KNOCKBACK** and 1 HP damage to you. Use momentum to your advantage!
+                Ring-out kills (knocking an enemy into the void) now properly credit the player if the enemy falls within 2.5 seconds of the last hit OR bump.
             </p>
             <p class="text-sm mb-6 font-bold text-red-400">PASSIVE REGEN: Below 50% health, heal 5 HP after 2.5s without damage.</p>
             <button id="startButton" class="button">START GAME</button>
@@ -278,7 +278,9 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        // RENAMED: scoreElement to pointsDisplay
         const pointsDisplay = document.getElementById('pointsDisplay'); 
+        // NEW: totalKillsDisplay
         const totalKillsDisplay = document.getElementById('totalKillsDisplay'); 
         
         const playerHealthBar = document.getElementById('playerHealthBar');
@@ -316,14 +318,14 @@
         const ATTACK_DURATION = 15; // Visual swing duration in frames
         const GRAVITY = 0.5;
         const JUMP_STRENGTH = 14; 
+        // This is the window for a Ring-Out kill to be credited to the player (2500ms = 2.5s)
         const KILL_WINDOW_MS = 2500; 
         const WORLD_WIDTH = 1600; 
         let LETHAL_VOID_Y = 400; 
         
-        // --- Bumping Constants ---
-        const BUMP_FORCE = 3;       // Strength of mutual knockback on body contact
-        const BUMP_DAMAGE = 1;      // Damage player takes on bump
-        const BUMP_COOLDOWN = 15;   // Frames before a bump can happen again
+        // Bumping Knockback Constants
+        const BUMP_KNOCKBACK_X = 2.5; 
+        const BUMP_KNOCKBACK_Y = -3; 
 
         // --- Healing Constants ---
         const PASSIVE_HEAL_COOLDOWN_MS = 2500; 
@@ -446,7 +448,6 @@
                 this.knockbackY = 0; 
                 this.knockbackFriction = 0.85; 
                 this.hitFlasher = 0; 
-                this.bumpCooldown = 0; // NEW: Added bump cooldown for entities
             }
 
             draw() {
@@ -473,8 +474,6 @@
                 this.knockbackY *= this.knockbackFriction;
                 if (Math.abs(this.knockbackX) < 0.1) this.knockbackX = 0;
                 if (Math.abs(this.knockbackY) < 0.1) this.knockbackY = 0;
-                
-                this.bumpCooldown = Math.max(0, this.bumpCooldown - 1); // Decrease bump cooldown
 
                 this.isGrounded = false;
 
@@ -483,9 +482,11 @@
                     if (this === player) {
                         gameOver(); 
                     } else {
+                        // Check if the enemy died from a player-caused ring-out (knockback)
                         const timeSinceHit = performance.now() - this.lastHitByPlayerTime;
-                        const isKOKill = timeSinceHit < KILL_WINDOW_MS;
-                        killEnemy(this, isKOKill);
+                        // If the enemy falls within 2.5 seconds (KILL_WINDOW_MS) of the last hit, credit the player.
+                        const shouldGrantKillCredit = timeSinceHit < KILL_WINDOW_MS; 
+                        killEnemy(this, shouldGrantKillCredit);
                     }
                     return; 
                 }
@@ -506,7 +507,7 @@
                 });
             }
             
-            // NEW: General collision check method
+            // Generic collision detection method
             isColliding(other) {
                 return (
                     this.x < other.x + other.size &&
@@ -527,11 +528,6 @@
 
             move() {
                 let dx = 0;
-
-                // Player movement is only affected by knockback while airborne
-                if (this.isGrounded && Math.abs(this.knockbackX) < 1) {
-                    this.knockbackX = 0;
-                }
 
                 if (Math.abs(this.knockbackX) < 1) {
                     if (game.keys['a'] || game.keys['arrowleft']) { 
@@ -615,7 +611,7 @@
                 this.attackCooldown = 0;
                 this.hitCooldown = 0; 
                 this.leapCooldown = 0; 
-                this.lastHitByPlayerTime = 0; 
+                this.lastHitByPlayerTime = 0; // Tracks when the player last hit the enemy
             }
 
             chase(target) {
@@ -693,7 +689,7 @@
 
                 this.attackCooldown = Math.max(0, this.attackCooldown - 1);
 
-                // Melee Damage Check (distinct from bumping)
+                // Note: Damage only occurs on successful attack cooldown reset
                 if (this.isColliding(target) && this.attackCooldown === 0) {
                     if (Math.abs(this.y - target.y) < target.size * 2) {
                         target.takeDamage(this.damage, this.x); 
@@ -707,6 +703,8 @@
                     this.health -= amount;
                     this.hitCooldown = 15; 
                     this.hitFlasher = 15; 
+                    
+                    // CRUCIAL 1: Record the time of the player's last hit/knockback (from sword)
                     this.lastHitByPlayerTime = performance.now(); 
 
                     // Apply DYNAMIC Knockback
@@ -715,6 +713,7 @@
                     this.knockbackY = -5; 
                     
                     if (this.health <= 0) {
+                        // Kills by damage are always credited to the player
                         killEnemy(this, true); 
                     }
                 }
@@ -794,6 +793,26 @@
         // --- Game Objects ---
         let player;
 
+        // --- BUMP LOGIC (CRUCIAL FIX HERE) ---
+        function handleBumpKnockback(e1, e2) {
+            // Determine the direction of the bump (e1 is pushing e2)
+            const e1_to_e2_dir = e2.x > e1.x ? 1 : -1;
+
+            // e1 pushes e2
+            e2.knockbackX += e1_to_e2_dir * BUMP_KNOCKBACK_X;
+            e2.knockbackY = BUMP_KNOCKBACK_Y;
+            
+            // CRUCIAL 2: If e1 is the player, update the last hit time on e2 (the enemy)
+            if (e1 === player) {
+                e2.lastHitByPlayerTime = performance.now(); 
+            }
+
+            // e2 pushes e1 (mutual effect, opposite direction)
+            e1.knockbackX -= e1_to_e2_dir * BUMP_KNOCKBACK_X;
+            e1.knockbackY = BUMP_KNOCKBACK_Y;
+        }
+
+
         // --- Attack/Sword Logic ---
         function isAttacking() {
             return game.lastAttackFrame > 0;
@@ -861,38 +880,9 @@
             });
         }
 
-        // --- NEW: Bumping/Mutual Knockback Logic ---
-        function checkBumpCollisions() {
-            game.enemies.forEach(enemy => {
-                // 1. Check if they are colliding
-                if (player.isColliding(enemy)) {
-                    // 2. Check bump cooldown to prevent single frame damage spam
-                    if (player.bumpCooldown === 0 && enemy.bumpCooldown === 0) {
-                        
-                        // Calculate direction and apply mutual knockback
-                        const directionToPlayer = player.x > enemy.x ? 1 : -1;
-                        const directionToEnemy = -directionToPlayer;
-
-                        // Apply knockback to Player
-                        player.knockbackX = directionToPlayer * BUMP_FORCE;
-                        player.knockbackY = -1; // Minor hop
-                        player.bumpCooldown = BUMP_COOLDOWN;
-                        
-                        // Apply knockback to Enemy
-                        enemy.knockbackX = directionToEnemy * BUMP_FORCE;
-                        enemy.knockbackY = -1; // Minor hop
-                        enemy.bumpCooldown = BUMP_COOLDOWN;
-                        
-                        // Player takes minor damage on bump
-                        // Source is enemy's x position
-                        player.takeDamage(BUMP_DAMAGE, enemy.x); 
-                    }
-                }
-            });
-        }
-
         // --- UPDATED: Kill Enemy Logic ---
         function killEnemy(enemyToKill, grantCredit) {
+            // grantCredit is true for damage kills, or for ring-out kills within KILL_WINDOW_MS
             if (grantCredit) {
                 game.totalKills++; // Increment permanent achievement stat
                 game.points += game.basePointsPerKill; // Increment spendable currency
@@ -912,7 +902,7 @@
             game.lastSpawnTime = performance.now(); 
         }
 
-        // --- Upgrade System Functions (UPDATED to use game.points) ---
+        // --- Upgrade System Functions ---
         
         function updateUpgradeButtonState() {
             const currentDamage = getCurrentDamage();
@@ -1092,9 +1082,6 @@
         function gameUpdate() {
             if (game.state !== 'PLAYING') return;
 
-            // NEW: Check for body collisions and apply mutual knockback
-            checkBumpCollisions();
-
             player.move();
             updateCamera();
             updateUpgradeButtonState();
@@ -1113,6 +1100,14 @@
 
             game.enemies = game.enemies.filter(e => e.health > 0 || e.y < LETHAL_VOID_Y); 
             game.enemies.forEach(enemy => enemy.chase(player));
+
+            // Bumping Collision Check and Knockback
+            game.enemies.forEach(enemy => {
+                // Ensure only player bumps grant the kill credit/timer reset
+                if (player.isColliding(enemy)) {
+                    handleBumpKnockback(player, enemy);
+                }
+            });
 
             game.potions.forEach(p => p.applyPhysics());
             
