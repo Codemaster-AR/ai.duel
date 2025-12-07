@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Duel: Platformer Combat</title>
+    <!-- Load Tailwind CSS for modern styling of the surrounding UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        /* Custom styles for the game elements and retro feel */
+        body {
+            background-color: #1e293b; /* Slate 800 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        #game-container {
+            border: 8px solid #cbd5e1; /* Slate 300 border */
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.5); /* Neon glow effect */
+            border-radius: 1rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            width: 90vw;
+            max-width: 800px;
+        }
+
+        #gameCanvas {
+            background-color: #0f172a; /* Dark background */
+            display: block;
+        }
+
+        .game-ui {
+            padding: 1rem;
+            color: #f1f5f9; /* Light text */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #0f172a;
+            border-top: 4px solid #475569;
+        }
+        
+        /* New Upgrade UI style */
+        .upgrade-ui {
+            padding: 1rem;
+            color: #f1f5f9;
+            background-color: #0f172a;
+            border-top: 4px solid #475569;
+            text-align: center;
+        }
+        .upgrade-button {
+            background-color: #f97316; /* Orange 500 */
+            color: #0f172a;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px #ea580c;
+            transition: all 0.1s;
+            font-size: 0.75rem;
+            font-family: 'Press Start 2P', cursive;
+            margin-left: 1rem;
+        }
+        .upgrade-button:hover:not(:disabled) {
+            background-color: #f59e0b;
+            box-shadow: 0 2px #b45309;
+            transform: translateY(2px);
+        }
+        .upgrade-button:disabled {
+            background-color: #334155; /* Slate 700 */
+            cursor: not-allowed;
+            box-shadow: none;
+            color: #64748b;
+        }
+
+
+        .message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            border: 4px solid #fbbf24; /* Amber border */
+            color: #fcd34d; /* Amber text */
+            padding: 2rem 3rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.8);
+            z-index: 100;
+        }
+
+        .button {
+            background-color: #10b981; /* Emerald */
+            color: #0f172a;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px #047857;
+            transition: all 0.1s;
+        }
+
+        .button:hover {
+            background-color: #059669;
+            box-shadow: 0 2px #047857;
+            transform: translateY(2px);
+        }
+
+        .health-bar-container {
+            width: 100px;
+            height: 10px;
+            background-color: #475569;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-left: 8px;
+            border: 1px solid #94a3b8;
+        }
+
+        .health-bar {
+            height: 100%;
+            background-color: #ef4444; /* Red */
+            transition: width 0.1s ease-out;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div class="game-ui">
+            <div class="flex items-center text-xs sm:text-base">
+                <span class="text-red-400 mr-2">PLAYER HEALTH:</span>
+                <div class="health-bar-container">
+                    <div id="playerHealthBar" class="health-bar" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div class="text-xs sm:text-base">
+                KILLS: <span id="score">0</span>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+        <div id="upgradePanel" class="upgrade-ui">
+            <span class="text-xs sm:text-sm mr-4">
+                KNOCKBACK LVL: <span id="knockbackLevelDisplay">0</span> (Base Force: 10)
+            </span>
+            <button id="upgradeButton" class="upgrade-button">
+                UPGRADE KNOCKBACK (<span id="priceDisplay">3</span> KILLS)
+            </button>
+        </div>
+
+        <div id="messageOverlay" class="message-box">
+            <h2 class="text-2xl mb-4">AI DUEL</h2>
+            <p class="text-sm mb-6">Move horizontally with **A & D** or **Left/Right Arrows**.</p>
+            <p class="text-sm mb-6">JUMP with **W**, **Up Arrow** or **SPACE**.</p>
+            <p class="text-sm mb-6">ATTACK with **SHIFT**.</p>
+            <p class="text-sm mb-6 font-bold text-red-400">WARNING: Falling off the platforms results in instant VOID DEATH!</p>
+            <button id="startButton" class="button">START GAME</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const playerHealthBar = document.getElementById('playerHealthBar');
+        const messageOverlay = document.getElementById('messageOverlay');
+        const startButton = document.getElementById('startButton');
+        
+        // Upgrade UI elements
+        const upgradePanel = document.getElementById('upgradePanel');
+        const upgradeButton = document.getElementById('upgradeButton');
+        const priceDisplay = document.getElementById('priceDisplay');
+        const knockbackLevelDisplay = document.getElementById('knockbackLevelDisplay');
+
+
+        // --- Configuration (Platformer Mode) ---
+        const PLAYER_SPEED = 5; 
+        const ENEMY_SPEED = 1.5; 
+        const ATTACK_DURATION = 15; 
+        const ATTACK_RECOVERY_FRAMES = 60; 
+        const GRAVITY = 0.5;
+        const JUMP_STRENGTH = 14; 
+        const KILL_WINDOW_MS = 2500; // 2.5 seconds for knockout credit
+        
+        // World Definition
+        const WORLD_WIDTH = 1600; // Expanded world size
+        
+        // LETHAL_VOID_Y is set exactly to the canvas height (400) for instant death.
+        const LETHAL_VOID_Y = canvas.height; 
+
+        const PLAYER_ATTACK_DAMAGE = 2; 
+
+        // --- Game State ---
+        let game = {
+            state: 'START', 
+            score: 0,
+            lastSpawnTime: 0,
+            enemySpawnRate: 3000, 
+            keys: {},
+            lastAttackFrame: 0, 
+            attackCooldown: 0, 
+            enemies: [], 
+            maxEnemies: 1, 
+            potions: [], 
+            cameraX: 0, 
+            // Knockback Upgrade System variables
+            knockbackLevel: 0,
+            baseEnemyKnockback: 10,
+            knockbackUpgradePrices: [3, 5, 10, 20, 40, 80, 160, 320, 640], // Max 9 levels for now
+            platforms: [ 
+                { x: 100, y: canvas.height - 120, width: 200, height: 20, color: '#581c87' }, // Left
+                { x: 700, y: canvas.height - 80, width: 200, height: 20, color: '#581c87' }, // Center Start Platform (Lower)
+                { x: 1300, y: canvas.height - 120, width: 200, height: 20, color: '#581c87' }, // Right
+                { x: 400, y: canvas.height - 200, width: 150, height: 20, color: '#581c87' }, // High left
+                { x: 1050, y: canvas.height - 250, width: 150, height: 20, color: '#581c87' } // High right
+            ]
+        };
+        
+        // Global position tracker for mouse/touch
+        let mouseX = canvas.width / 2; 
+
+        // --- Classes ---
+
+        class Entity {
+            constructor(x, y, size, color, maxHealth) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.color = color;
+                this.maxHealth = maxHealth;
+                this.health = maxHealth;
+                this.velocityY = 0; 
+                this.isGrounded = false;
+                
+                this.knockbackX = 0; 
+                this.knockbackY = 0; 
+                this.knockbackFriction = 0.85; 
+                this.hitFlasher = 0; 
+            }
+
+            draw() {
+                // Determine color based on hitFlasher status
+                let drawColor = this.color;
+                if (this.hitFlasher > 0 && Math.floor(this.hitFlasher / 3) % 2 === 0) {
+                    drawColor = '#f1f5f9'; // Flash white
+                }
+
+                ctx.fillStyle = drawColor;
+                // Apply camera offset for drawing
+                ctx.fillRect(this.x - game.cameraX, this.y, this.size, this.size);
+                
+                this.hitFlasher = Math.max(0, this.hitFlasher - 1); 
+            }
+
+            applyPhysics() {
+                // Store previous position for platform tunneling fix
+                const prevY = this.y; 
+
+                this.velocityY += GRAVITY;
+                this.y += this.velocityY;
+
+                // Apply knockback
+                this.x += this.knockbackX;
+                this.y += this.knockbackY;
+                this.knockbackX *= this.knockbackFriction;
+                this.knockbackY *= this.knockbackFriction;
+                if (Math.abs(this.knockbackX) < 0.1) this.knockbackX = 0;
+                if (Math.abs(this.knockbackY) < 0.1) this.knockbackY = 0;
+
+                this.isGrounded = false;
+
+                // --- VOID MECHANIC: Lethal Check ---
+                // If the entity's top edge passes the LETHAL_VOID_Y (canvas.height = 400)
+                if (this.y > LETHAL_VOID_Y) { 
+                    if (this === player) {
+                        console.log("VOID DEATH TRIGGERED: Player Y > LETHAL_VOID_Y (Instant Death)");
+                        gameOver(); 
+                    } else {
+                        // Kill logic for Enemy (checks if it was a knock-out kill)
+                        const timeSinceHit = performance.now() - this.lastHitByPlayerTime;
+                        const isKOKill = timeSinceHit < KILL_WINDOW_MS;
+                        
+                        if (isKOKill) {
+                            console.log(`VOID DEATH TRIGGERED: Enemy fell into the void. KO kill granted (Time: ${timeSinceHit.toFixed(0)}ms).`);
+                        } else {
+                            console.log(`VOID DEATH TRIGGERED: Enemy fell into the void. No kill credit (Time: ${timeSinceHit.toFixed(0)}ms).`);
+                        }
+                        
+                        killEnemy(this, isKOKill);
+                    }
+                    return; // Stop processing physics for this frame
+                }
+
+                // --- Collision Checks ---
+
+                // 2. Check for Platform Collision 
+                game.platforms.forEach(platform => {
+                    // Check for top-down collision only, and only if moving downwards
+                    if (this.velocityY >= 0 && 
+                        this.x < platform.x + platform.width &&
+                        this.x + this.size > platform.x &&
+                        // TUNNELING FIX: Check if entity was above the platform last frame (prevY)
+                        prevY + this.size <= platform.y && 
+                        this.y + this.size >= platform.y) 
+                    {
+                        this.y = platform.y - this.size; // Snap to platform top
+                        this.velocityY = 0;
+                        this.isGrounded = true;
+                        this.knockbackY = 0; 
+                    }
+                });
+            }
+        }
+
+        class Player extends Entity {
+            constructor(x, y) {
+                super(x, y, 20, '#38bdf8', 100); // Sky 400
+                this.y = y; // Start Y is determined by spawn point
+                this.direction = 1; // 1 = Right, -1 = Left
+            }
+
+            move() {
+                let dx = 0;
+
+                // Only allow movement if horizontal knockback is negligible
+                if (Math.abs(this.knockbackX) < 1) {
+                    // Horizontal movement (A/D or Left/Right)
+                    if (game.keys['a'] || game.keys['arrowleft']) { 
+                        dx -= PLAYER_SPEED;
+                    }
+                    if (game.keys['d'] || game.keys['arrowright']) { 
+                        dx += PLAYER_SPEED;
+                    }
+                }
+
+                // Set direction based on mouse/touch position (relative to canvas center)
+                const playerCenterScreenX = this.x - game.cameraX + this.size / 2;
+                if (mouseX > playerCenterScreenX) {
+                    this.direction = 1; 
+                } else {
+                    this.direction = -1; 
+                }
+
+
+                // Jumping (W, Up Arrow, or Space)
+                if ((game.keys['w'] || game.keys['arrowup'] || game.keys[' ']) && this.isGrounded) { 
+                    this.velocityY = -JUMP_STRENGTH;
+                    this.isGrounded = false;
+                    // Prevent immediate re-jump by consuming the input
+                    game.keys['w'] = false;
+                    game.keys['arrowup'] = false; 
+                    game.keys[' '] = false;
+                }
+
+                // Apply physics and boundary checks
+                this.applyPhysics();
+                // Boundary check using WORLD_WIDTH (horizontal only)
+                this.x = Math.max(0, Math.min(WORLD_WIDTH - this.size, this.x + dx));
+            }
+
+            draw() {
+                super.draw(); 
+
+                // Draw eye for direction
+                const eyeSize = 4;
+                const eyeOffset = 4; 
+                
+                const eyeX = this.x + this.size / 2 + this.direction * eyeOffset - eyeSize / 2 - game.cameraX;
+                const eyeY = this.y + this.size / 4; 
+                
+                ctx.fillStyle = '#0f172a'; 
+                ctx.fillRect(eyeX, eyeY, eyeSize, eyeSize);
+            }
+
+            updateHealthBar() {
+                const percentage = (this.health / this.maxHealth) * 100;
+                playerHealthBar.style.width = `${percentage}%`;
+                playerHealthBar.style.backgroundColor = percentage > 25 ? '#10b981' : '#ef4444'; 
+            }
+
+            takeDamage(amount, sourceX) {
+                this.health -= amount;
+
+                // Apply Knockback: push player away from the source
+                const direction = this.x < sourceX ? -1 : 1;
+                this.knockbackX = direction * 5; 
+                this.knockbackY = -5; 
+                this.hitFlasher = 15; 
+
+                if (this.health <= 0) {
+                    this.health = 0;
+                    gameOver();
+                }
+                this.updateHealthBar();
+            }
+        }
+
+        class Enemy extends Entity {
+            constructor() {
+                const size = 30;
+                
+                // --- Start Random Platform Spawning Logic ---
+                const platforms = game.platforms;
+                const randomIndex = Math.floor(Math.random() * platforms.length);
+                const platform = platforms[randomIndex];
+                
+                // Spawn X: Random position between platform.x and platform.x + platform.width - size
+                let x = platform.x + Math.random() * (platform.width - size);
+                
+                // Spawn Y: Just above the platform
+                let y = platform.y - size - 1; 
+                // --- End Random Platform Spawning Logic ---
+
+                super(x, y, size, '#ef4444', 10); // Health is 10
+                this.damage = 10;
+                this.attackCooldown = 0;
+                this.hitCooldown = 0; 
+                this.leapCooldown = 0; 
+                this.lastHitByPlayerTime = 0; // Tracks when player last hit this enemy for KO window
+            }
+
+            chase(target) {
+                // IMPORTANT: applyPhysics is called first and handles falling/platform collision/reset
+                this.applyPhysics(); 
+                
+                // If the enemy fell off and was removed in applyPhysics, stop here
+                if (!game.enemies.includes(this)) return;
+
+                this.hitCooldown = Math.max(0, this.hitCooldown - 1);
+                this.leapCooldown = Math.max(0, this.leapCooldown - 1);
+
+                // Enemy AI Movement logic only if not currently experiencing strong knockback
+                if (Math.abs(this.knockbackX) < 1) { 
+                    const distance = target.x - this.x;
+                    const direction = distance > 0 ? 1 : -1;
+                    let dx = direction * ENEMY_SPEED;
+                    
+                    // 1. Aggressive Leaping attack attempt (Jump high and far)
+                    if (this.isGrounded && this.leapCooldown === 0) {
+                        // Leap towards the player if far or if player is vertically higher
+                        if (Math.abs(distance) > 100 || target.y < this.y) {
+                             if (Math.random() < 0.008) { 
+                                this.velocityY = -JUMP_STRENGTH * 0.8; 
+                                this.knockbackX = direction * PLAYER_SPEED * 2; 
+                                this.leapCooldown = 180; // Long cooldown for major attack
+                                dx = 0; // Don't add base movement
+                            }
+                        }
+                    }
+
+                    // 2. Edge Detection and Platform Jumping (Preventing falls/Traversing gaps)
+                    if (this.isGrounded) {
+                        let currentPlatform = null;
+                        
+                        // Find the platform the enemy is currently standing on
+                        for (const platform of game.platforms) {
+                            // Check if enemy's base is exactly on the platform top (allowing for slight overlap due to float precision)
+                            if (
+                                this.x + this.size > platform.x &&
+                                this.x < platform.x + platform.width &&
+                                Math.abs(this.y + this.size - platform.y) < 1 
+                            ) {
+                                currentPlatform = platform;
+                                break;
+                            }
+                        }
+                        
+                        if (currentPlatform) {
+                            const edgeTolerance = 5; // Distance from edge to trigger jump check
+                            let triggerJump = false;
+
+                            // Check if a single step would put the enemy outside the platform edge + tolerance
+                            if (direction === 1) { // Moving Right
+                                if (this.x + this.size + ENEMY_SPEED > currentPlatform.x + currentPlatform.width - edgeTolerance) {
+                                    triggerJump = true;
+                                }
+                            } else { // Moving Left
+                                if (this.x - ENEMY_SPEED < currentPlatform.x + edgeTolerance) {
+                                    triggerJump = true;
+                                }
+                            }
+
+                            if (triggerJump && this.leapCooldown === 0) {
+                                // Check if the target is across the gap (distance check only, removed target Y check)
+                                if (Math.abs(distance) > 50) {
+                                    
+                                    // High chance to attempt the jump
+                                    if (Math.random() < 0.98) { 
+                                        // FIX: Further increased power for max gap clearing (2.2x and 6.5x)
+                                        this.velocityY = -JUMP_STRENGTH * 2.2; // Increased vertical lift
+                                        this.knockbackX = direction * PLAYER_SPEED * 6.5; // Increased horizontal push
+                                        this.leapCooldown = 90; // Cooldown for platform jump
+                                        dx = 0; // Override standard horizontal movement this frame
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Apply standard horizontal movement only if no jump was initiated
+                        this.x += dx;
+
+                    } else if (this.velocityY >= 0) {
+                        // If airborne and falling (but not a controlled jump/knockback), still chase a bit horizontally
+                        this.x += dx * 0.5; 
+                    }
+                }
+                
+                // Boundary check (using WORLD_WIDTH)
+                this.x = Math.max(0, Math.min(WORLD_WIDTH - this.size, this.x));
+
+                // --- Collision and Damage Check ---
+                this.attackCooldown = Math.max(0, this.attackCooldown - 1);
+
+                // Check for collision with player (contact damage)
+                if (this.isColliding(target) && this.attackCooldown === 0) {
+                    // Damage if close vertically
+                    if (Math.abs(this.y - target.y) < target.size * 2) {
+                        target.takeDamage(this.damage, this.x); 
+                        this.attackCooldown = 60; 
+                    }
+                }
+            }
+
+            takeDamage(amount) {
+                if (this.hitCooldown === 0) {
+                    this.health -= amount;
+                    this.hitCooldown = 15; 
+                    this.hitFlasher = 15; 
+                    this.lastHitByPlayerTime = performance.now(); // Record hit time for KO window
+
+                    // Apply knockback away from the player (source of damage)
+                    const direction = this.x < player.x ? -1 : 1; 
+                    
+                    // Calculate knockback force based on player's upgrade level
+                    const knockbackForce = game.baseEnemyKnockback + game.knockbackLevel * 5; 
+
+                    this.knockbackX = direction * knockbackForce;
+                    this.knockbackY = -5; // Vertical knockback
+                    
+                    // Standard kill if health reaches zero
+                    if (this.health <= 0) {
+                        killEnemy(this, true); // True because it's a standard kill
+                    }
+                }
+            }
+            
+            draw() {
+                super.draw(); 
+
+                // Draw health bar if damaged
+                if (this.health < this.maxHealth) {
+                    this.drawHealthBar();
+                }
+            }
+
+            drawHealthBar() {
+                const barWidth = this.size;
+                const barHeight = 4;
+                // Apply camera offset for drawing
+                const barX = this.x - game.cameraX; 
+                const barY = this.y - barHeight - 2;
+
+                // Background (Grey)
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                // Foreground (Red)
+                const currentWidth = (this.health / this.maxHealth) * barWidth;
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(barX, barY, currentWidth, barHeight);
+            }
+
+            isColliding(other) {
+                return (
+                    this.x < other.x + other.size &&
+                    this.x + this.size > other.x &&
+                    this.y < other.y + other.size &&
+                    this.y + this.size > other.y
+                );
+            }
+        }
+
+        class Potion {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 15;
+                this.color = '#dc2626'; // Red for healing
+                this.velocityY = 0;
+                this.healAmount = 25;
+                this.isFallen = false; // Flag to indicate if potion has fallen past reset zone
+            }
+
+            applyPhysics() {
+                const prevY = this.y; // Store previous Y for collision check
+                
+                this.velocityY += GRAVITY;
+                this.y += this.velocityY;
+
+                // VOID MECHANIC: Remove potion if it falls too far
+                if (this.y > LETHAL_VOID_Y) {
+                    this.isFallen = true;
+                    return; 
+                }
+                
+                // Check for platform collision (with tunneling fix)
+                game.platforms.forEach(platform => {
+                    if (this.velocityY >= 0 && 
+                        this.x < platform.x + platform.width &&
+                        this.x + this.size > platform.x &&
+                        // Tunneling fix: only collide if the previous position was above the platform
+                        prevY + this.size <= platform.y && 
+                        this.y + this.size >= platform.y) 
+                    {
+                        this.y = platform.y - this.size; // Snap to platform top
+                        this.velocityY = 0;
+                    }
+                });
+            }
+
+            draw() {
+                // Apply camera offset for drawing
+                const drawX = this.x - game.cameraX;
+                const drawY = this.y;
+
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(drawX + this.size / 2, drawY + this.size / 2, this.size / 2, 0, Math.PI * 2);
+                ctx.fill();
+                // Draw a white cross for healing icon
+                ctx.fillStyle = '#f1f5f9';
+                // Vertical bar
+                ctx.fillRect(drawX + this.size / 2 - 1, drawY + 3, 2, this.size - 6);
+                // Horizontal bar
+                ctx.fillRect(drawX + 3, drawY + this.size / 2 - 1, this.size - 6, 2);
+            }
+        }
+
+        // --- Game Objects ---
+        let player;
+
+        // --- Attack/Sword Logic (omitted for brevity) ---
+        function isAttacking() {
+            return game.lastAttackFrame > 0;
+        }
+
+        function drawSword() {
+            if (!isAttacking()) return;
+
+            const framesElapsed = ATTACK_DURATION - game.lastAttackFrame;
+            const swingProgress = framesElapsed / ATTACK_DURATION;
+            const swordLength = 50;
+            const swordWidth = 8;
+            const direction = player.direction;
+            
+            // Player's draw position on screen
+            const playerScreenX = player.x - game.cameraX;
+
+            ctx.save();
+            
+            // Translate to the pivot point (Player's center on screen)
+            ctx.translate(playerScreenX + player.size / 2, player.y + player.size / 2);
+
+            let startRotation = direction === 1 ? 0 : Math.PI; 
+
+            let angle;
+            if (direction === 1) {
+                // Swing Right: from 0 (horizontal right) down to -PI/2 (up)
+                angle = startRotation - swingProgress * (Math.PI / 2);
+            } else {
+                // Swing Left: from PI (horizontal left) up to PI/2
+                angle = startRotation + swingProgress * (Math.PI / 2);
+            }
+
+            ctx.rotate(angle); 
+
+            ctx.fillStyle = '#fbbf24'; // Amber (Sword Color)
+            ctx.fillRect(0, -swordWidth / 2, swordLength, swordWidth);
+
+            // Check for enemy hit only during the active strike phase (mid-swing)
+            if (game.lastAttackFrame > ATTACK_DURATION / 3) {
+                checkSwordHit();
+            }
+
+            ctx.restore();
+            game.lastAttackFrame--;
+        }
+
+        function checkSwordHit() {
+            const playerSize = player.size;
+            const swordReach = 50; 
+            const direction = player.direction;
+
+            // Strike area defined in WORLD coordinates
+            let strikeArea = {
+                x: direction === 1 ? player.x + playerSize : player.x - swordReach,
+                y: player.y,
+                width: swordReach, 
+                height: playerSize 
+            };
+            
+            // Iterate over all enemies to check for hits
+            game.enemies.forEach(enemy => {
+                 if (
+                    strikeArea.x < enemy.x + enemy.size &&
+                    strikeArea.x + strikeArea.width > enemy.x &&
+                    strikeArea.y < enemy.y + enemy.size &&
+                    strikeArea.y + strikeArea.height > enemy.y
+                ) {
+                    enemy.takeDamage(PLAYER_ATTACK_DAMAGE);
+                }
+            });
+        }
+
+        /**
+         * Removes an enemy from the game and updates the score if a kill credit is earned.
+         * @param {Enemy} enemyToKill The enemy object to remove.
+         * @param {boolean} grantCredit Whether to increase the score.
+         */
+        function killEnemy(enemyToKill, grantCredit) {
+            if (grantCredit) {
+                game.score++;
+                scoreElement.textContent = game.score;
+                updateUpgradeButtonState(); // Update button state after score change
+                
+                // 20% chance to drop a potion
+                if (Math.random() < 0.2) { 
+                    game.potions.push(new Potion(enemyToKill.x, enemyToKill.y));
+                }
+            }
+
+            // Filter out the killed enemy
+            game.enemies = game.enemies.filter(e => e !== enemyToKill);
+            game.lastSpawnTime = performance.now(); // Reset spawn timer for next potential spawn
+        }
+
+        // --- Upgrade System Functions ---
+        
+        function updateUpgradeButtonState() {
+            const currentPrice = game.knockbackUpgradePrices[game.knockbackLevel];
+            
+            knockbackLevelDisplay.textContent = game.knockbackLevel;
+            
+            if (currentPrice === undefined) {
+                upgradeButton.textContent = "MAX UPGRADE";
+                upgradeButton.disabled = true;
+                priceDisplay.textContent = "MAX";
+            } else {
+                priceDisplay.textContent = currentPrice;
+                upgradeButton.textContent = `UPGRADE KNOCKBACK (${currentPrice} KILLS)`;
+                if (game.score >= currentPrice) {
+                    upgradeButton.disabled = false;
+                } else {
+                    upgradeButton.disabled = true;
+                }
+            }
+        }
+        
+        function purchaseKnockbackUpgrade() {
+            const currentPrice = game.knockbackUpgradePrices[game.knockbackLevel];
+            
+            if (currentPrice !== undefined && game.score >= currentPrice) {
+                game.score -= currentPrice;
+                game.knockbackLevel++;
+                
+                // Update UI displays
+                scoreElement.textContent = game.score;
+                
+                // The pricing array handles the doubling logic: 3, 5, 10, 20, ...
+                updateUpgradeButtonState();
+                console.log(`Knockback upgraded to Level ${game.knockbackLevel}. Next cost: ${game.knockbackUpgradePrices[game.knockbackLevel]}`);
+            } else if (currentPrice === undefined) {
+                // Already maxed out
+                console.log("Knockback is already maxed out.");
+            } else {
+                console.log("Not enough kills to purchase upgrade.");
+            }
+        }
+        
+        upgradeButton.onclick = purchaseKnockbackUpgrade;
+
+
+        // --- Game Logic Functions ---
+
+        function getSpawnPoint() {
+            // Find the central starting platform (index 1 in the current array)
+            const START_PLATFORM = game.platforms[1]; 
+            const playerSize = player ? player.size : 20; // Default size if player object not initialized
+            const START_PLATFORM_Y = START_PLATFORM.y;
+            const START_PLATFORM_X = START_PLATFORM.x + (START_PLATFORM.width / 2) - (playerSize / 2); 
+            // Spawn player just above the platform
+            return { x: START_PLATFORM_X, y: START_PLATFORM_Y - playerSize - 1 }; 
+        }
+
+        function spawnEnemy() {
+            if (game.enemies.length < game.maxEnemies) {
+                // Enemy constructor now handles random platform selection
+                game.enemies.push(new Enemy());
+            }
+        }
+
+        function updateCamera() {
+            // Calculate desired camera position to center player
+            let desiredX = player.x - (canvas.width / 2) + (player.size / 2);
+
+            // Clamp camera movement within the world boundaries
+            desiredX = Math.max(0, desiredX);
+            desiredX = Math.min(WORLD_WIDTH - canvas.width, desiredX);
+
+            // Smoothly move the camera (optional, but nice)
+            game.cameraX += (desiredX - game.cameraX) * 0.1;
+
+            // Ensure clamping after smoothing
+            game.cameraX = Math.max(0, game.cameraX);
+            game.cameraX = Math.min(WORLD_WIDTH - canvas.width, game.cameraX);
+        }
+
+
+        function gameUpdate() {
+            if (game.state !== 'PLAYING') return;
+
+            // 1. Handle Player Movement and Physics
+            player.move();
+
+            // 2. Update Camera Position based on Player
+            updateCamera();
+            updateUpgradeButtonState(); // Ensure button state updates every frame
+
+            // 3. Handle Enemy Logic and Physics
+            game.enemies = game.enemies.filter(e => e.health > 0 || e.y < LETHAL_VOID_Y); 
+            game.enemies.forEach(enemy => enemy.chase(player));
+
+            // 4. Potion Logic
+            game.potions.forEach(p => p.applyPhysics());
+            
+            // Check for player collection and remove collected/fallen potions
+            game.potions = game.potions.filter(p => {
+                // Remove if fallen (past the reset zone/void)
+                if (p.isFallen) return false;
+
+                // Check for collision with player (simple AABB collision)
+                if (player.x < p.x + p.size && player.x + player.size > p.x &&
+                    player.y < p.y + p.size && player.y + player.size > p.y) 
+                {
+                    player.health = Math.min(player.maxHealth, player.health + p.healAmount);
+                    player.updateHealthBar();
+                    return false; // Remove collected potion
+                }
+                return true; // Keep potion
+            });
+
+
+            // 5. Enemy Spawning
+            if (game.enemies.length < game.maxEnemies && (performance.now() - game.lastSpawnTime > game.enemySpawnRate)) {
+                spawnEnemy();
+                game.lastSpawnTime = performance.now(); 
+                
+                // Difficulty increase: check every 5 kills
+                if (game.score > 0 && game.score % 5 === 0 && game.maxEnemies < 5) {
+                    game.maxEnemies++;
+                }
+                // Speed up spawn rate
+                game.enemySpawnRate = Math.max(1000, game.enemySpawnRate - 50);
+            }
+
+            // 6. Update Attack state and Cooldown
+            if (game.lastAttackFrame > 0) {
+                game.lastAttackFrame--;
+            }
+            game.attackCooldown = Math.max(0, game.attackCooldown - 1);
+        }
+
+        function gameDraw() {
+            // Clear canvas
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Platforms (offset by cameraX)
+            game.platforms.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x - game.cameraX, p.y, p.width, p.height);
+                
+                // Draw a border to make the platforms clearly visible
+                ctx.strokeStyle = '#a78bfa'; // Violet 400
+                ctx.lineWidth = 2;
+                ctx.strokeRect(p.x - game.cameraX, p.y, p.width, p.height);
+            });
+
+            // --- Draw Void Visualization ---
+            const VOID_START_Y = canvas.height; 
+            const VOID_HEIGHT = 10; 
+            if (game.cameraX + canvas.width > 0 && game.cameraX < WORLD_WIDTH) {
+                // Drawing the actual void space just below the canvas edge
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.2)'; // Semi-transparent red
+                ctx.fillRect(
+                    0 - game.cameraX, 
+                    VOID_START_Y, 
+                    WORLD_WIDTH, 
+                    VOID_HEIGHT
+                );
+                
+                // Draw a flashing danger line right at the canvas edge (400)
+                if (Math.floor(performance.now() / 200) % 2 === 0) {
+                    ctx.fillStyle = '#ef4444'; // Red
+                    ctx.fillRect(0 - game.cameraX, VOID_START_Y - 4, WORLD_WIDTH, 4);
+                }
+            }
+
+
+            if (game.state === 'PLAYING') {
+                
+                // Draw Potions
+                game.potions.forEach(p => p.draw());
+
+                // Draw Player
+                player.draw();
+
+                // Draw Enemies
+                game.enemies.forEach(enemy => enemy.draw());
+
+                // Draw Sword (Attack Visualization)
+                drawSword();
+            }
+        }
+
+        // --- Game State Transitions ---
+
+        function gameLoop() {
+            gameUpdate();
+            gameDraw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            // Initialize player (needed to calculate spawn point based on player size)
+            player = new Player(0, 0); 
+            const spawn = getSpawnPoint();
+            player.x = spawn.x;
+            player.y = spawn.y;
+            
+            // Reset game state
+            game.state = 'PLAYING';
+            game.score = 0;
+            game.knockbackLevel = 0; // Reset knockback level
+            
+            // Set initial camera position to center on the player
+            game.cameraX = player.x - (canvas.width / 2) + (player.size / 2);
+            game.cameraX = Math.max(0, game.cameraX);
+            game.cameraX = Math.min(WORLD_WIDTH - canvas.width, game.cameraX);
+
+
+            scoreElement.textContent = game.score;
+            player.updateHealthBar();
+            messageOverlay.classList.add('hidden');
+            game.enemies = []; // Reset enemies
+            game.potions = []; // Reset potions
+            game.lastSpawnTime = performance.now();
+            game.enemySpawnRate = 3000;
+            game.maxEnemies = 1;
+            game.attackCooldown = 0; // Reset cooldown
+            
+            // Initial upgrade button state update
+            updateUpgradeButtonState(); 
+        }
+
+        function gameOver() {
+            game.state = 'GAME_OVER';
+            const finalScore = game.score;
+            messageOverlay.innerHTML = `
+                <h2 class="text-3xl mb-4 text-red-500">GAME OVER</h2>
+                <p class="text-xl mb-6">You killed ${finalScore} AI threats.</p>
+                <p class="text-sm mb-6">Knockback level reached: ${game.knockbackLevel}</p>
+                <button id="restartButton" class="button">PLAY AGAIN</button>
+            `;
+            messageOverlay.classList.remove('hidden');
+            document.getElementById('restartButton').onclick = startGame;
+        }
+
+
+        // --- Event Listeners for Mouse/Touch Input ---
+
+        function updateMouseX(clientX) {
+            const rect = canvas.getBoundingClientRect();
+            // Calculate scale to translate screen coordinates to canvas coordinates
+            const scaleX = canvas.width / rect.width; 
+            mouseX = (clientX - rect.left) * scaleX;
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            updateMouseX(e.clientX);
+        });
+
+        document.addEventListener('touchstart', handleTouch);
+        document.addEventListener('touchmove', handleTouch);
+
+        function handleTouch(e) {
+            if (e.touches.length > 0) {
+                updateMouseX(e.touches[0].clientX);
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            game.keys[key] = true;
+
+            // Attack input (Shift only)
+            if (game.state === 'PLAYING' && key === 'shift') {
+                // Prevent multiple attacks while one is ongoing OR while cooldown is active
+                if (!isAttacking() && game.attackCooldown === 0) {
+                    game.lastAttackFrame = ATTACK_DURATION; // Start visual swing
+                    game.attackCooldown = ATTACK_RECOVERY_FRAMES; // Start recovery cooldown
+                }
+                e.preventDefault(); 
+            }
+            
+            // Jump input (Space, W, ArrowUp)
+            if (game.state === 'PLAYING' && (key === ' ' || key === 'w' || key === 'arrowup')) {
+                 e.preventDefault(); // Prevent spacebar scrolling
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            game.keys[e.key.toLowerCase()] = false;
+        });
+
+        // Initialize game loop and start button listener
+        startButton.onclick = startGame;
+        gameLoop();
+    </script>
+</body>
+</html>
