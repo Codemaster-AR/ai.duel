@@ -21,6 +21,7 @@
         }
 
         #game-container {
+            position: relative; 
             border: 8px solid #cbd5e1; /* Slate 300 border */
             box-shadow: 0 0 40px rgba(0, 255, 255, 0.5); /* Neon glow effect */
             border-radius: 1rem;
@@ -46,7 +47,6 @@
             border-top: 4px solid #475569;
         }
         
-        /* New Upgrade UI style */
         .upgrade-ui {
             padding: 1rem;
             color: #f1f5f9;
@@ -54,7 +54,7 @@
             border-top: 4px solid #475569;
             text-align: center;
             display: grid;
-            grid-template-columns: repeat(4, 1fr); /* 4 columns now */
+            grid-template-columns: repeat(4, 1fr);
             gap: 0.5rem;
         }
         
@@ -93,7 +93,7 @@
             cursor: pointer;
             box-shadow: 0 4px #ea580c;
             transition: all 0.1s;
-            font-size: 0.5rem; /* Smaller font for small screens */
+            font-size: 0.5rem;
             font-family: 'Press Start 2P', cursive;
             text-align: center;
             line-height: 1;
@@ -105,15 +105,14 @@
             transform: translateY(2px);
         }
         .upgrade-button:disabled {
-            background-color: #334155; /* Slate 700 */
+            background-color: #334155;
             cursor: not-allowed;
             box-shadow: none;
             color: #64748b;
         }
         
-        /* Specific style for the USE and HEAL buttons */
         .use-heal-button {
-            background-color: #16a34a; /* Green */
+            background-color: #16a34a;
             box-shadow: 0 4px #15803d;
         }
         .use-heal-button:hover:not(:disabled) {
@@ -121,15 +120,14 @@
             box-shadow: 0 2px #15803d;
         }
 
-
         .message-box {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             background-color: rgba(0, 0, 0, 0.9);
-            border: 4px solid #fbbf24; /* Amber border */
-            color: #fcd34d; /* Amber text */
+            border: 4px solid #fbbf24;
+            color: #fcd34d;
             padding: 2rem 3rem;
             border-radius: 0.75rem;
             text-align: center;
@@ -140,13 +138,14 @@
         }
 
         .button {
-            background-color: #10b981; /* Emerald */
+            background-color: #10b981;
             color: #0f172a;
             padding: 0.5rem 1rem;
             border-radius: 0.5rem;
             cursor: pointer;
             box-shadow: 0 4px #047857;
             transition: all 0.1s;
+            font-family: 'Press Start 2P', cursive;
         }
 
         .button:hover {
@@ -167,11 +166,10 @@
 
         .health-bar {
             height: 100%;
-            background-color: #ef4444; /* Red */
+            background-color: #ef4444;
             transition: width 0.1s ease-out;
         }
         
-        /* Added new style for the Kills/Points stats in the top bar */
         .stat-display {
             display: flex;
             align-items: center;
@@ -185,6 +183,8 @@
 <body>
 
     <div id="game-container">
+        <!-- The settings button and modal have been removed -->
+
         <div class="game-ui">
             <div class="flex items-center text-xs sm:text-base">
                 <span class="text-red-400 mr-2">HEALTH:</span>
@@ -193,13 +193,11 @@
                 </div>
             </div>
             
-            <!-- NEW: Display for Total Kills (Achievement) -->
             <div class="stat-display">
                 <span class="text-indigo-400 mr-2">TOTAL KILLS:</span>
                 <span id="totalKillsDisplay" class="text-white font-bold">0</span>
             </div>
             
-            <!-- EXISTING: Healing Charges and Use Button -->
             <div class="flex items-center text-xs sm:text-base">
                 <span class="text-green-400 mr-1">CHARGES:</span>
                 <span id="healingChargesDisplay" class="mx-1 text-green-400 font-bold">0</span>
@@ -208,7 +206,6 @@
                 </button>
             </div>
             
-            <!-- RENAMED: Score is now Points (Currency) -->
             <div class="stat-display">
                 <span class="text-yellow-400 mr-2">POINTS:</span>
                 <span id="pointsDisplay" class="text-white font-bold">0</span>
@@ -218,7 +215,6 @@
         <canvas id="gameCanvas" width="800" height="400"></canvas>
 
         <div id="upgradePanel" class="upgrade-ui">
-             <!-- All prices now refer to POINTS instead of KILLS -->
             <div class="upgrade-group">
                 <span class="text-xs sm:text-sm text-green-400">
                     HEAL CHARGE | +<span id="healAmountDisplay">35</span> HP
@@ -228,7 +224,6 @@
                 </button>
             </div>
 
-            <!-- Damage Upgrade Group -->
             <div class="upgrade-group">
                 <span class="text-xs sm:text-sm">
                     DMG LVL <span id="damageLevelDisplay">0</span> | HITS <span id="hitsToKillDisplay">5</span>
@@ -238,7 +233,6 @@
                 </button>
             </div>
             
-            <!-- Speed Upgrade Group -->
             <div class="upgrade-group">
                 <span class="text-xs sm:text-sm">
                     SPD LVL <span id="speedLevelDisplay">0</span> | CD <span id="cooldownDisplay">1.0</span>s
@@ -248,7 +242,6 @@
                 </button>
             </div>
             
-            <!-- Knockback Upgrade Group -->
             <div class="upgrade-group">
                 <span class="text-xs sm:text-sm">
                     KB LVL <span id="knockbackLevelDisplay">0</span> | KB <span id="knockbackDisplay">10</span>
@@ -261,14 +254,19 @@
 
         <div id="messageOverlay" class="message-box">
             <h2 class="text-2xl mb-4">AI DUEL</h2>
-            <p class="text-sm mb-6">Move horizontally with **A & D** or **Left/Right Arrows**.</p>
-            <p class="text-sm mb-6">JUMP with **W**, **Up Arrow** or **SPACE**.</p>
-            <p class="text-sm mb-6">ATTACK with **SHIFT**.</p>
-            <p class="text-sm mb-6 font-bold text-green-400">
-                KILLS now grant **POINTS**, which are used to buy Upgrades and Healing.
+            <p class="text-sm mb-4 font-bold text-yellow-400">
+                MOVEMENT (Walk/Run): **Left/Right Arrows**
+            </p>
+            <p class="text-sm mb-4 font-bold text-yellow-400">
+                JUMP: **W**, **Up Arrow** or **SPACE**
             </p>
             <p class="text-sm mb-6 font-bold text-yellow-400">
-                Ring-out kills (knocking an enemy into the void) now properly credit the player if the enemy falls within 2.5 seconds of the last hit OR bump.
+                FACING/ATTACK DIRECTION: **A & D**
+            </p>
+            <p class="text-sm mb-6">ATTACK with **SHIFT**.</p>
+            
+            <p class="text-sm mb-6 font-bold text-green-400">
+                KILLS grant **POINTS**, used for Upgrades and Healing.
             </p>
             <p class="text-sm mb-6 font-bold text-red-400">PASSIVE REGEN: Below 50% health, heal 5 HP after 2.5s without damage.</p>
             <button id="startButton" class="button">START GAME</button>
@@ -278,11 +276,8 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        // RENAMED: scoreElement to pointsDisplay
         const pointsDisplay = document.getElementById('pointsDisplay'); 
-        // NEW: totalKillsDisplay
         const totalKillsDisplay = document.getElementById('totalKillsDisplay'); 
-        
         const playerHealthBar = document.getElementById('playerHealthBar');
         const messageOverlay = document.getElementById('messageOverlay');
         const startButton = document.getElementById('startButton');
@@ -298,13 +293,11 @@
         const speedLevelDisplay = document.getElementById('speedLevelDisplay');
         const cooldownDisplay = document.getElementById('cooldownDisplay');
         
-        // Knockback UI elements
         const upgradeKnockbackButton = document.getElementById('upgradeKnockbackButton');
         const knockbackPriceDisplay = document.getElementById('knockbackPriceDisplay');
         const knockbackLevelDisplay = document.getElementById('knockbackLevelDisplay');
         const knockbackDisplay = document.getElementById('knockbackDisplay');
         
-        // Healing UI elements
         const purchaseHealButton = document.getElementById('purchaseHealButton');
         const useHealButton = document.getElementById('useHealButton');
         const healingChargesDisplay = document.getElementById('healingChargesDisplay');
@@ -315,15 +308,12 @@
         // --- Attack & Physics Configuration ---
         const PLAYER_SPEED = 5; 
         const ENEMY_SPEED = 1.5; 
-        const ATTACK_DURATION = 15; // Visual swing duration in frames
+        const ATTACK_DURATION = 15;
         const GRAVITY = 0.5;
         const JUMP_STRENGTH = 14; 
-        // This is the window for a Ring-Out kill to be credited to the player (2500ms = 2.5s)
         const KILL_WINDOW_MS = 2500; 
         const WORLD_WIDTH = 1600; 
         let LETHAL_VOID_Y = 400; 
-        
-        // Bumping Knockback Constants
         const BUMP_KNOCKBACK_X = 2.5; 
         const BUMP_KNOCKBACK_Y = -3; 
 
@@ -331,34 +321,28 @@
         const PASSIVE_HEAL_COOLDOWN_MS = 2500; 
         const PASSIVE_HEAL_AMOUNT = 5; 
         const LOW_HEALTH_THRESHOLD = 0.5; 
-
         const HEAL_PURCHASE_PRICE = 2;
         const HEAL_AMOUNT_INSTANT = 35; 
         
         // --- Upgrade Constants ---
         const ENEMY_MAX_HEALTH = 10;
-        
-        // Damage Levels: [Damage]
         const ATTACK_DAMAGE_MAP = [2, 3, 4]; 
         const DAMAGE_UPGRADE_PRICES = [3, 10]; 
-
-        // Speed Levels: [RecoveryFrames]
         const INITIAL_ATTACK_COOLDOWN_FRAMES = 60; 
         const MIN_ATTACK_COOLDOWN_FRAMES = 12; 
         const SPEED_REDUCTION_PER_LEVEL = 8; 
         const SPEED_UPGRADE_PRICES = [4, 12, 25, 40, 60, 90]; 
-
-        // Knockback Levels: [KnockbackValue]
         const KNOCKBACK_VALUES = [10, 15, 20, 25]; 
         const KNOCKBACK_UPGRADE_PRICES = [5, 15, 30]; 
 
 
-        // --- Game State (UPDATED) ---
+        // --- Game State (Simplified) ---
         let game = {
+            // Possible states: 'START', 'PLAYING', 'GAME_OVER'
             state: 'START', 
-            totalKills: 0, // NEW: Lifetime achievement counter (non-spendable)
-            points: 0,     // NEW: Spendable currency
-            basePointsPerKill: 1, // Points gained per kill
+            totalKills: 0, 
+            points: 0,     
+            basePointsPerKill: 1, 
             lastSpawnTime: 0,
             enemySpawnRate: 3000, 
             keys: {},
@@ -369,12 +353,9 @@
             potions: [], 
             cameraX: 0, 
             
-            // Attack Upgrade System variables
             attackDamageLevel: 0,
             attackSpeedLevel: 0,
             knockbackLevel: 0,
-            
-            // Healing Charges
             healingCharges: 0, 
             
             platforms: [ 
@@ -385,8 +366,7 @@
                 { x: 1050, y: 150, width: 150, height: 20, color: '#581c87' }
             ]
         };
-        
-        let mouseX = canvas.width / 2; 
+
 
         // --- Utility Functions for Current Stats ---
 
@@ -420,12 +400,8 @@
         // --- Canvas Resizing for Responsiveness ---
         function resizeCanvas() {
             const container = document.getElementById('game-container');
-            // Set canvas width to container width (responsive)
             canvas.width = container.clientWidth;
-            // Keep a reasonable height aspect ratio (max 400px height for desktop)
             canvas.height = Math.min(canvas.width / 2, 400); 
-            
-            // Update the lethal void line based on the new height
             LETHAL_VOID_Y = canvas.height + 50; 
         }
         window.addEventListener('resize', resizeCanvas);
@@ -477,21 +453,17 @@
 
                 this.isGrounded = false;
 
-                // VOID MECHANIC: Lethal Check
                 if (this.y > LETHAL_VOID_Y) { 
                     if (this === player) {
                         gameOver(); 
                     } else {
-                        // Check if the enemy died from a player-caused ring-out (knockback)
                         const timeSinceHit = performance.now() - this.lastHitByPlayerTime;
-                        // If the enemy falls within 2.5 seconds (KILL_WINDOW_MS) of the last hit, credit the player.
                         const shouldGrantKillCredit = timeSinceHit < KILL_WINDOW_MS; 
                         killEnemy(this, shouldGrantKillCredit);
                     }
                     return; 
                 }
 
-                // Collision Checks
                 game.platforms.forEach(platform => {
                     if (this.velocityY >= 0 && 
                         this.x < platform.x + platform.width &&
@@ -507,7 +479,6 @@
                 });
             }
             
-            // Generic collision detection method
             isColliding(other) {
                 return (
                     this.x < other.x + other.size &&
@@ -522,7 +493,7 @@
             constructor(x, y) {
                 super(x, y, 20, '#38bdf8', 100); 
                 this.y = y; 
-                this.direction = 1; 
+                this.direction = 1; // 1 for right, -1 for left
                 this.lastDamageTime = 0; 
             }
 
@@ -530,25 +501,21 @@
                 let dx = 0;
 
                 if (Math.abs(this.knockbackX) < 1) {
-                    if (game.keys['a'] || game.keys['arrowleft']) { 
-                        dx -= PLAYER_SPEED;
-                    }
-                    if (game.keys['d'] || game.keys['arrowright']) { 
-                        dx += PLAYER_SPEED;
-                    }
-                }
+                    
+                    // --- HORIZONTAL MOVEMENT (Fixed to Arrow Keys) ---
+                    if (game.keys['arrowleft']) { dx -= PLAYER_SPEED; }
+                    if (game.keys['arrowright']) { dx += PLAYER_SPEED; }
 
-                const playerCenterScreenX = this.x - game.cameraX + this.size / 2;
-                if (mouseX > playerCenterScreenX) {
-                    this.direction = 1; 
-                } else {
-                    this.direction = -1; 
+                    // --- FACING DIRECTION (Fixed to A/D) ---
+                    if (game.keys['a']) { this.direction = -1; }
+                    if (game.keys['d']) { this.direction = 1; }
                 }
-
+                
 
                 if ((game.keys['w'] || game.keys['arrowup'] || game.keys[' ']) && this.isGrounded) { 
                     this.velocityY = -JUMP_STRENGTH;
                     this.isGrounded = false;
+                    // Consume key press to prevent continuous jumping
                     game.keys['w'] = false;
                     game.keys['arrowup'] = false; 
                     game.keys[' '] = false;
@@ -579,7 +546,6 @@
             takeDamage(amount, sourceX) {
                 this.health -= amount;
 
-                // Reset the timer for passive healing
                 this.lastDamageTime = performance.now(); 
 
                 const direction = this.x < sourceX ? -1 : 1;
@@ -611,7 +577,7 @@
                 this.attackCooldown = 0;
                 this.hitCooldown = 0; 
                 this.leapCooldown = 0; 
-                this.lastHitByPlayerTime = 0; // Tracks when the player last hit the enemy
+                this.lastHitByPlayerTime = 0;
             }
 
             chase(target) {
@@ -689,7 +655,6 @@
 
                 this.attackCooldown = Math.max(0, this.attackCooldown - 1);
 
-                // Note: Damage only occurs on successful attack cooldown reset
                 if (this.isColliding(target) && this.attackCooldown === 0) {
                     if (Math.abs(this.y - target.y) < target.size * 2) {
                         target.takeDamage(this.damage, this.x); 
@@ -704,16 +669,13 @@
                     this.hitCooldown = 15; 
                     this.hitFlasher = 15; 
                     
-                    // CRUCIAL 1: Record the time of the player's last hit/knockback (from sword)
                     this.lastHitByPlayerTime = performance.now(); 
 
-                    // Apply DYNAMIC Knockback
                     const direction = this.x < player.x ? -1 : 1; 
                     this.knockbackX = direction * getCurrentKnockback(); 
                     this.knockbackY = -5; 
                     
                     if (this.health <= 0) {
-                        // Kills by damage are always credited to the player
                         killEnemy(this, true); 
                     }
                 }
@@ -768,7 +730,7 @@
                         this.x < platform.x + platform.width &&
                         this.x + this.size > platform.x &&
                         prevY + this.size <= platform.y && 
-                        this.y + this.size >= platform.y) 
+                        this.y + this.size > platform.y) 
                     {
                         this.y = platform.y - this.size; 
                         this.velocityY = 0;
@@ -793,21 +755,17 @@
         // --- Game Objects ---
         let player;
 
-        // --- BUMP LOGIC (CRUCIAL FIX HERE) ---
+        // --- BUMP LOGIC ---
         function handleBumpKnockback(e1, e2) {
-            // Determine the direction of the bump (e1 is pushing e2)
             const e1_to_e2_dir = e2.x > e1.x ? 1 : -1;
 
-            // e1 pushes e2
             e2.knockbackX += e1_to_e2_dir * BUMP_KNOCKBACK_X;
             e2.knockbackY = BUMP_KNOCKBACK_Y;
             
-            // CRUCIAL 2: If e1 is the player, update the last hit time on e2 (the enemy)
             if (e1 === player) {
                 e2.lastHitByPlayerTime = performance.now(); 
             }
 
-            // e2 pushes e1 (mutual effect, opposite direction)
             e1.knockbackX -= e1_to_e2_dir * BUMP_KNOCKBACK_X;
             e1.knockbackY = BUMP_KNOCKBACK_Y;
         }
@@ -880,14 +838,11 @@
             });
         }
 
-        // --- UPDATED: Kill Enemy Logic ---
         function killEnemy(enemyToKill, grantCredit) {
-            // grantCredit is true for damage kills, or for ring-out kills within KILL_WINDOW_MS
             if (grantCredit) {
-                game.totalKills++; // Increment permanent achievement stat
-                game.points += game.basePointsPerKill; // Increment spendable currency
+                game.totalKills++;
+                game.points += game.basePointsPerKill;
                 
-                // Update UI for both
                 pointsDisplay.textContent = game.points;
                 totalKillsDisplay.textContent = game.totalKills;
 
@@ -910,16 +865,12 @@
             const currentHits = getHitsToKill(currentDamage);
             const currentKnockback = getCurrentKnockback();
             
-            // --- Healing Purchase UI ---
             healingChargesDisplay.textContent = game.healingCharges;
-            // Check against game.points
             purchaseHealButton.disabled = game.points < HEAL_PURCHASE_PRICE;
             
-            // --- Healing Use UI ---
             const canUseHeal = game.healingCharges > 0 && player.health < player.maxHealth;
             useHealButton.disabled = !canUseHeal;
             
-            // Update button visual state
             if (canUseHeal) {
                 useHealButton.classList.add('use-heal-button');
                 useHealButton.classList.remove('upgrade-button:disabled');
@@ -928,7 +879,6 @@
                 useHealButton.classList.add('upgrade-button:disabled');
             }
             
-            // --- Damage Upgrade UI ---
             damageLevelDisplay.textContent = game.attackDamageLevel;
             hitsToKillDisplay.textContent = currentHits;
 
@@ -942,11 +892,9 @@
             } else {
                 damagePriceDisplay.textContent = damagePrice;
                 upgradeDamageButton.textContent = `UPGRADE DAMAGE (${damagePrice} PTS)`;
-                // Check against game.points
                 upgradeDamageButton.disabled = game.points < damagePrice;
             }
 
-            // --- Speed Upgrade UI ---
             speedLevelDisplay.textContent = game.attackSpeedLevel;
             cooldownDisplay.textContent = currentCooldown;
             
@@ -961,11 +909,9 @@
             } else {
                 speedPriceDisplay.textContent = speedPrice;
                 upgradeSpeedButton.textContent = `UPGRADE SPEED (${speedPrice} PTS)`;
-                // Check against game.points
                 upgradeSpeedButton.disabled = game.points < speedPrice;
             }
             
-            // --- Knockback Upgrade UI ---
             knockbackLevelDisplay.textContent = game.knockbackLevel;
             knockbackDisplay.textContent = currentKnockback;
 
@@ -980,13 +926,11 @@
             } else {
                 knockbackPriceDisplay.textContent = knockbackPrice;
                 upgradeKnockbackButton.textContent = `UPGRADE KNOCKBACK (${knockbackPrice} PTS)`;
-                // Check against game.points
                 upgradeKnockbackButton.disabled = game.points < knockbackPrice;
             }
         }
         
         function purchaseHealCharge() {
-            // Deduct from points, NOT kills
             if (game.points >= HEAL_PURCHASE_PRICE) {
                 game.points -= HEAL_PURCHASE_PRICE;
                 game.healingCharges++;
@@ -1008,8 +952,6 @@
         function purchaseDamageUpgrade() {
             const currentLevel = game.attackDamageLevel;
             const price = DAMAGE_UPGRADE_PRICES[currentLevel];
-            
-            // Deduct from points, NOT kills
             if (currentLevel < ATTACK_DAMAGE_MAP.length - 1 && game.points >= price) {
                 game.points -= price;
                 game.attackDamageLevel++;
@@ -1022,8 +964,6 @@
             const currentLevel = game.attackSpeedLevel;
             const maxLevel = SPEED_UPGRADE_PRICES.length;
             const price = SPEED_UPGRADE_PRICES[currentLevel];
-            
-            // Deduct from points, NOT kills
             if (currentLevel < maxLevel && game.points >= price) {
                 game.points -= price;
                 game.attackSpeedLevel++;
@@ -1036,8 +976,6 @@
             const currentLevel = game.knockbackLevel;
             const maxLevel = KNOCKBACK_UPGRADE_PRICES.length;
             const price = KNOCKBACK_UPGRADE_PRICES[currentLevel];
-            
-            // Deduct from points, NOT kills
             if (currentLevel < maxLevel && game.points >= price) {
                 game.points -= price;
                 game.knockbackLevel++;
@@ -1080,13 +1018,13 @@
 
 
         function gameUpdate() {
+            // CRITICAL CHECK: Only run game logic if the state is strictly 'PLAYING'
             if (game.state !== 'PLAYING') return;
 
             player.move();
             updateCamera();
             updateUpgradeButtonState();
 
-            // Passive Healing Logic
             if (player.health < player.maxHealth * LOW_HEALTH_THRESHOLD && player.health > 0) {
                 const timeSinceDamage = performance.now() - player.lastDamageTime;
 
@@ -1101,9 +1039,7 @@
             game.enemies = game.enemies.filter(e => e.health > 0 || e.y < LETHAL_VOID_Y); 
             game.enemies.forEach(enemy => enemy.chase(player));
 
-            // Bumping Collision Check and Knockback
             game.enemies.forEach(enemy => {
-                // Ensure only player bumps grant the kill credit/timer reset
                 if (player.isColliding(enemy)) {
                     handleBumpKnockback(player, enemy);
                 }
@@ -1130,7 +1066,6 @@
                 spawnEnemy();
                 game.lastSpawnTime = performance.now(); 
                 
-                // Max enemies increase based on Kills (totalKills) for challenge scaling
                 if (game.totalKills > 0 && game.totalKills % 5 === 0 && game.maxEnemies < 5) {
                     game.maxEnemies++;
                 }
@@ -1156,7 +1091,6 @@
                 ctx.strokeRect(p.x - game.cameraX, p.y, p.width, p.height);
             });
 
-            // Draw the lethal zone indicator (VOID)
             const VOID_START_Y = canvas.height; 
             const VOID_HEIGHT = 10; 
             if (game.cameraX + canvas.width > 0 && game.cameraX < WORLD_WIDTH) {
@@ -1170,7 +1104,7 @@
             }
 
 
-            if (game.state === 'PLAYING') {
+            if (game.state === 'PLAYING' || game.state === 'GAME_OVER') {
                 game.potions.forEach(p => p.draw());
                 player.draw();
                 game.enemies.forEach(enemy => enemy.draw());
@@ -1196,10 +1130,9 @@
             player.lastDamageTime = performance.now(); 
             
             game.state = 'PLAYING';
-            game.totalKills = 0; // Reset both stats on new game
+            game.totalKills = 0;
             game.points = 0; 
             
-            // Reset upgrade levels
             game.attackDamageLevel = 0;
             game.attackSpeedLevel = 0; 
             game.knockbackLevel = 0; 
@@ -1226,6 +1159,7 @@
 
         function gameOver() {
             game.state = 'GAME_OVER';
+
             const finalKills = game.totalKills;
             const finalDamage = getCurrentDamage();
             const finalCooldown = getCurrentCooldownTime();
@@ -1244,25 +1178,6 @@
 
 
         // --- Event Listeners for Input ---
-
-        function updateMouseX(clientX) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width; 
-            mouseX = (clientX - rect.left) * scaleX;
-        }
-
-        document.addEventListener('mousemove', (e) => {
-            updateMouseX(e.clientX);
-        });
-
-        document.addEventListener('touchstart', handleTouch);
-        document.addEventListener('touchmove', handleTouch);
-
-        function handleTouch(e) {
-            if (e.touches.length > 0) {
-                updateMouseX(e.touches[0].clientX);
-            }
-        }
 
         document.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
@@ -1283,7 +1198,8 @@
                 e.preventDefault();
             }
             
-            if (game.state === 'PLAYING' && (key === ' ' || key === 'w' || key === 'arrowup')) {
+            // Prevent scrolling on key presses
+            if (game.state !== 'GAME_OVER' && (key === ' ' || key === 'w' || key === 'arrowup' || key === 'a' || key === 'd' || key === 'arrowleft' || key === 'arrowright')) {
                  e.preventDefault(); 
             }
         });
@@ -1296,10 +1212,8 @@
         resizeCanvas();
         initializeUIValues();
         
-        // Attach the click listener to the initial Start Button
         startButton.onclick = startGame; 
         
-        // Start the continuous rendering loop
         gameLoop();
     </script>
 </body>
